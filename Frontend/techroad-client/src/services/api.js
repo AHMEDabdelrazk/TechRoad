@@ -1,5 +1,5 @@
 import axios from "axios";
 
 export default axios.create({
-    baseURL: "http://localhost:5023/api"
+    baseURL: "https://techroad-6lc6.onrender.com/swagger"
 });

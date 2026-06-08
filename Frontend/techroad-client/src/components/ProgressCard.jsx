@@ -42,11 +42,6 @@ export default function ProgressCard({
         );
     };
 
-    useEffect(() =>
-    {
-        loadProgress();
-    }, [technology]);
-
     const [basics, setBasics]
         = useState(false);
 
@@ -59,19 +54,7 @@ export default function ProgressCard({
     const [projects, setProjects]
         = useState(0);
 
-    const score =
-        (basics ? 20 : 0)
-        +
-        (intermediate ? 30 : 0)
-        +
-        (advanced ? 30 : 0)
-        +
-        Math.min(
-            projects * 5,
-            20
-        );
-
-        const loadProgress =
+    const loadProgress =
         async () =>
         {
             const user =
@@ -112,6 +95,27 @@ export default function ProgressCard({
                 progress.projects
             );
         };
+
+    useEffect(() =>
+        {
+            if(technology)
+            {
+                loadProgress();
+            }
+
+        }, [technology]);
+
+        const score =
+        (basics ? 20 : 0)
+        +
+        (intermediate ? 30 : 0)
+        +
+        (advanced ? 30 : 0)
+        +
+        Math.min(
+            projects * 5,
+            20
+        );
 
     return (
 
