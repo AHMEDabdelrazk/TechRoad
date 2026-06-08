@@ -15,7 +15,7 @@ export default function Register() {
   const register = async () => {
 
       await api.post(
-          "/auth/register",
+          "auth/register",
           user
       );
 

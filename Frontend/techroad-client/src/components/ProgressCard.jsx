@@ -21,7 +21,7 @@ export default function ProgressCard({
         );
 
         await api.post(
-            "/progress",
+            "progress",
             {
                 username:
                     user.username,
