@@ -1,5 +1,7 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using TechRoad.API.Models;
+using TechRoad.API.Models.DTOs;
 using TechRoad.API.Services;
 
 namespace TechRoad.API.Controllers;
@@ -8,51 +10,70 @@ namespace TechRoad.API.Controllers;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
-    private readonly JsonStorageService _storage;
+    private readonly IAuthService _authService;
 
-    public AuthController(JsonStorageService storage)
+    public AuthController(IAuthService authService)
     {
-        _storage = storage;
+        _authService = authService;
     }
 
     [HttpPost("register")]
-    public IActionResult Register(User user)
+    [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public IActionResult Register([FromBody] RegisterRequestDto request)
     {
-        var users = _storage.GetUsers();
-
-        if (users.Any(x => x.Email == user.Email))
+        if (!ModelState.IsValid)
         {
-            return BadRequest("Email already exists");
+            return BadRequest(ModelState);
         }
 
-        users.Add(user);
-
-        _storage.SaveUsers(users);
-
-        return Ok(new
+        var (success, message, response) = _authService.Register(request);
+        if (!success)
         {
-            message = "User created"
-        });
+            return BadRequest(new { message });
+        }
+
+        return Ok(response);
     }
 
     [HttpPost("login")]
-    public IActionResult Login(User login)
+    [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public IActionResult Login([FromBody] LoginRequestDto request)
     {
-        var users = _storage.GetUsers();
-
-        var user = users.FirstOrDefault(x =>
-            x.Email == login.Email &&
-            x.Password == login.Password);
-
-        if (user == null)
+        if (!ModelState.IsValid)
         {
-            return Unauthorized();
+            return BadRequest(ModelState);
         }
 
-        return Ok(new
+        var (success, message, response) = _authService.Login(request);
+        if (!success)
         {
-            username = user.Username,
-            email = user.Email
-        });
+            return Unauthorized(new { message });
+        }
+
+        return Ok(response);
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    [ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public IActionResult GetCurrentUser()
+    {
+        var username = User.FindFirstValue(ClaimTypes.Name) ?? User.Identity?.Name;
+        if (string.IsNullOrEmpty(username))
+        {
+            return Unauthorized(new { message = "Invalid user token claims." });
+        }
+
+        var profile = _authService.GetProfile(username);
+        if (profile == null)
+        {
+            return NotFound(new { message = "User not found." });
+        }
+
+        return Ok(profile);
     }
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
+using TechRoad.API.Models;
 using TechRoad.API.Services;
 
 namespace TechRoad.API.Controllers;
@@ -7,26 +8,46 @@ namespace TechRoad.API.Controllers;
 [Route("api/[controller]")]
 public class RoadmapController : ControllerBase
 {
-    private readonly JsonStorageService _storage;
+    private readonly IRoadmapService _roadmapService;
 
-    public RoadmapController(JsonStorageService storage)
+    public RoadmapController(IRoadmapService roadmapService)
     {
-        _storage = storage;
+        _roadmapService = roadmapService;
     }
 
     [HttpGet]
+    [ProducesResponseType(typeof(List<Category>), StatusCodes.Status200OK)]
     public IActionResult GetAll()
     {
-        Console.WriteLine("Fetching roadmaps...");
-        var roadmaps = _storage.GetRoadmaps();
-        Console.WriteLine("===== DESERIALIZED =====");
+        var roadmaps = _roadmapService.GetAllCategories();
+        return Ok(roadmaps);
+    }
 
-        foreach (var roadmap in roadmaps!)
+    [HttpGet("{categoryName}")]
+    [ProducesResponseType(typeof(Category), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public IActionResult GetCategory(string categoryName)
+    {
+        var category = _roadmapService.GetCategoryByName(categoryName);
+        if (category == null)
         {
-            Console.WriteLine(
-                $"Name={roadmap.Name} | Color={roadmap.Color}"
-            );
+            return NotFound(new { message = $"Category '{categoryName}' not found." });
         }
-        return Ok(_storage.GetRoadmaps());
+
+        return Ok(category);
+    }
+
+    [HttpGet("tech/{techName}")]
+    [ProducesResponseType(typeof(Technology), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public IActionResult GetTechnology(string techName)
+    {
+        var tech = _roadmapService.GetTechnologyByName(techName);
+        if (tech == null)
+        {
+            return NotFound(new { message = $"Technology '{techName}' not found." });
+        }
+
+        return Ok(tech);
     }
 }

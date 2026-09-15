@@ -1,71 +1,106 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using TechRoad.API.Models;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using TechRoad.API.Models.DTOs;
 using TechRoad.API.Services;
 
 namespace TechRoad.API.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
-public class ProgressController
-    : ControllerBase
+public class ProgressController : ControllerBase
 {
-    private readonly JsonStorageService _storage;
+    private readonly IProgressService _progressService;
 
-    public ProgressController(
-        JsonStorageService storage
-    )
+    public ProgressController(IProgressService progressService)
     {
-        _storage = storage;
+        _progressService = progressService;
     }
 
     [HttpGet]
+    [ProducesResponseType(typeof(List<ProgressResponseDto>), StatusCodes.Status200OK)]
     public IActionResult Get()
     {
-        return Ok(
-            _storage.GetProgress()
-        );
+        var username = GetAuthenticatedUsername();
+        if (string.IsNullOrEmpty(username))
+        {
+            return Unauthorized(new { message = "User not identified." });
+        }
+
+        var list = _progressService.GetProgressForUser(username);
+        return Ok(list);
+    }
+
+    [HttpGet("stats")]
+    [ProducesResponseType(typeof(ProgressStatsDto), StatusCodes.Status200OK)]
+    public IActionResult GetStats()
+    {
+        var username = GetAuthenticatedUsername();
+        if (string.IsNullOrEmpty(username))
+        {
+            return Unauthorized(new { message = "User not identified." });
+        }
+
+        var stats = _progressService.GetStatsForUser(username);
+        return Ok(stats);
+    }
+
+    [HttpGet("{technology}")]
+    [ProducesResponseType(typeof(ProgressResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public IActionResult GetByTech(string technology)
+    {
+        var username = GetAuthenticatedUsername();
+        if (string.IsNullOrEmpty(username))
+        {
+            return Unauthorized(new { message = "User not identified." });
+        }
+
+        var item = _progressService.GetProgress(username, technology);
+        if (item == null)
+        {
+            return NotFound(new { message = $"No progress found for {technology}" });
+        }
+
+        return Ok(item);
     }
 
     [HttpPost]
-    public IActionResult Save(
-        UserProgress progress
-    )
+    [ProducesResponseType(typeof(ProgressResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public IActionResult Save([FromBody] SaveProgressDto dto)
     {
-        var list =
-            _storage.GetProgress();
-
-        var existing =
-            list.FirstOrDefault(x =>
-                x.Username ==
-                progress.Username
-                &&
-                x.Technology ==
-                progress.Technology);
-
-        if (existing != null)
+        if (!ModelState.IsValid)
         {
-            existing.Basics =
-                progress.Basics;
-
-            existing.Intermediate =
-                progress.Intermediate;
-
-            existing.Advanced =
-                progress.Advanced;
-
-            existing.Projects =
-                progress.Projects;
-
-            existing.Score =
-                progress.Score;
-        }
-        else
-        {
-            list.Add(progress);
+            return BadRequest(ModelState);
         }
 
-        _storage.SaveProgress(list);
+        var username = GetAuthenticatedUsername();
+        if (string.IsNullOrEmpty(username))
+        {
+            return Unauthorized(new { message = "User not identified." });
+        }
 
-        return Ok();
+        var saved = _progressService.SaveProgress(username, dto);
+
+        return Ok(new ProgressResponseDto
+        {
+            Username = saved.Username,
+            Technology = saved.Technology,
+            Basics = saved.Basics,
+            Intermediate = saved.Intermediate,
+            Advanced = saved.Advanced,
+            Projects = saved.Projects,
+            Score = saved.Score,
+            LastUpdated = saved.LastUpdated
+        });
+    }
+
+    private string? GetAuthenticatedUsername()
+    {
+        return User.FindFirstValue(ClaimTypes.Name) 
+            ?? User.FindFirstValue(ClaimTypes.NameIdentifier) 
+            ?? User.Identity?.Name;
     }
 }

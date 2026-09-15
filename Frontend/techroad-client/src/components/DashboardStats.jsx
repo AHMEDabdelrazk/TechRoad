@@ -1,81 +1,49 @@
-import {
-    useEffect,
-    useState
-}
-from "react";
-
-
+import { useEffect, useState } from "react";
 import "../styles/dashboard.css";
+import api from "../services/api";
 
-import api
-from "../services/api";
+export default function DashboardStats({ refreshTrigger }) {
+  const [stats, setStats] = useState({
+    technologiesTracked: 0,
+    averageScore: 0,
+    completedRoadmaps: 0,
+    totalProjects: 0,
+    totalLevelsCompleted: 0
+  });
 
-export default function DashboardStats()
-{
-    const [progress,
-        setProgress]
-        = useState([]);
+  useEffect(() => {
+    api.get("/progress/stats")
+      .then((res) => {
+        if (res.data) {
+          setStats(res.data);
+        }
+      })
+      .catch(() => {
+        // Fallback gracefully
+      });
+  }, [refreshTrigger]);
 
-    useEffect(() =>
-    {
-        api.get("/progress")
-            .then(res =>
-            {
-                setProgress(
-                    res.data
-                );
-            });
+  return (
+    <div className="stats-grid" style={{ marginBottom: "24px" }}>
+      <div className="stat-card">
+        <h2>{stats.technologiesTracked}</h2>
+        <p>Technologies Tracked</p>
+      </div>
 
-    }, []);
+      <div className="stat-card">
+        <h2>{stats.averageScore}%</h2>
+        <p>Average Mastery</p>
+      </div>
 
-    const total =
-        progress.reduce(
-            (sum, p) =>
-            sum + p.score,
-            0
-        );
+      <div className="stat-card">
+        <h2>{stats.completedRoadmaps}</h2>
+        <p>Mastered Roadmaps (100%)</p>
+      </div>
 
-    const average =
-        progress.length
-        ?
-        Math.round(
-            total /
-            progress.length
-        )
-        :
-        0;
-
-    return (
-
-        <div
-            className="stats-grid"
-        >
-
-            <div
-                className="stat-card"
-            >
-                <h2>
-                    {progress.length}
-                </h2>
-
-                <p>
-                    Technologies
-                </p>
-            </div>
-
-            <div
-                className="stat-card"
-            >
-                <h2>
-                    {average}%
-                </h2>
-
-                <p>
-                    Average Score
-                </p>
-            </div>
-
-        </div>
-
-    );
+      <div className="stat-card">
+        <h2>{stats.totalProjects}</h2>
+        <p>Projects Built</p>
+      </div>
+    </div>
+  );
 }

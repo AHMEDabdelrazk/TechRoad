@@ -1,101 +1,364 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using TechRoad.API.Models;
 
 namespace TechRoad.API.Services;
 
-public class JsonStorageService
+public class JsonStorageService : IJsonStorageService
 {
     private readonly IWebHostEnvironment _env;
+    private readonly IPasswordHasherService _passwordHasher;
+    private readonly ILogger<JsonStorageService> _logger;
+
+    private readonly ReaderWriterLockSlim _usersLock = new();
+    private readonly ReaderWriterLockSlim _progressLock = new();
+    private readonly ReaderWriterLockSlim _roadmapsLock = new();
+
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        WriteIndented = true
     };
 
-    public JsonStorageService(IWebHostEnvironment env)
+    public JsonStorageService(
+        IWebHostEnvironment env,
+        IPasswordHasherService passwordHasher,
+        ILogger<JsonStorageService> logger)
     {
         _env = env;
+        _passwordHasher = passwordHasher;
+        _logger = logger;
+
+        EnsureDataDirectoryExists();
+        MigratePlaintextPasswordsIfNeeded();
     }
 
-    private string UsersFile =>
-        Path.Combine(_env.ContentRootPath, "Data", "users.json");
+    private string DataDirectory => Path.Combine(_env.ContentRootPath, "Data");
+    private string UsersFile => Path.Combine(DataDirectory, "users.json");
+    private string RoadmapsFile => Path.Combine(DataDirectory, "roadmaps.json");
+    private string ProgressFile => Path.Combine(DataDirectory, "progress.json");
 
-    private string RoadmapsFile =>
-        Path.Combine(_env.ContentRootPath, "Data", "roadmaps.json");
+    private void EnsureDataDirectoryExists()
+    {
+        if (!Directory.Exists(DataDirectory))
+        {
+            Directory.CreateDirectory(DataDirectory);
+        }
+    }
+
+    #region Users Storage
 
     public List<User> GetUsers()
     {
-        if (!File.Exists(UsersFile))
-            return new();
+        _usersLock.EnterReadLock();
+        try
+        {
+            if (!File.Exists(UsersFile))
+                return new List<User>();
 
-        var json = File.ReadAllText(UsersFile);
+            var json = File.ReadAllText(UsersFile);
+            if (string.IsNullOrWhiteSpace(json))
+                return new List<User>();
 
-        return JsonSerializer.Deserialize<List<User>>(json, _jsonOptions)
-               ?? new List<User>();
+            return JsonSerializer.Deserialize<List<User>>(json, _jsonOptions) ?? new List<User>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error reading users file.");
+            return new List<User>();
+        }
+        finally
+        {
+            _usersLock.ExitReadLock();
+        }
+    }
+
+    public User? GetUserByEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email)) return null;
+        var users = GetUsers();
+        return users.FirstOrDefault(u => string.Equals(u.Email, email, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public User? GetUserByUsername(string username)
+    {
+        if (string.IsNullOrWhiteSpace(username)) return null;
+        var users = GetUsers();
+        return users.FirstOrDefault(u => string.Equals(u.Username, username, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public void SaveUser(User user)
+    {
+        _usersLock.EnterWriteLock();
+        try
+        {
+            var users = ReadUsersInternal();
+            var existingIndex = users.FindIndex(u => 
+                string.Equals(u.Email, user.Email, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(u.Username, user.Username, StringComparison.OrdinalIgnoreCase));
+
+            if (existingIndex >= 0)
+            {
+                users[existingIndex] = user;
+            }
+            else
+            {
+                users.Add(user);
+            }
+
+            WriteUsersInternal(users);
+        }
+        finally
+        {
+            _usersLock.ExitWriteLock();
+        }
     }
 
     public void SaveUsers(List<User> users)
     {
-        var json = JsonSerializer.Serialize(
-            users,
-            new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
-
-        File.WriteAllText(UsersFile, json);
+        _usersLock.EnterWriteLock();
+        try
+        {
+            WriteUsersInternal(users);
+        }
+        finally
+        {
+            _usersLock.ExitWriteLock();
+        }
     }
+
+    private List<User> ReadUsersInternal()
+    {
+        if (!File.Exists(UsersFile))
+            return new List<User>();
+
+        var json = File.ReadAllText(UsersFile);
+        if (string.IsNullOrWhiteSpace(json))
+            return new List<User>();
+
+        return JsonSerializer.Deserialize<List<User>>(json, _jsonOptions) ?? new List<User>();
+    }
+
+    private void WriteUsersInternal(List<User> users)
+    {
+        var json = JsonSerializer.Serialize(users, _jsonOptions);
+        SafeWriteAtomic(UsersFile, json);
+    }
+
+    private void MigratePlaintextPasswordsIfNeeded()
+    {
+        try
+        {
+            var users = GetUsers();
+            var needsMigration = false;
+
+            foreach (var user in users)
+            {
+                if (!string.IsNullOrEmpty(user.PasswordHash) && !_passwordHasher.IsHashed(user.PasswordHash))
+                {
+                    user.PasswordHash = _passwordHasher.HashPassword(user.PasswordHash);
+                    needsMigration = true;
+                }
+            }
+
+            if (needsMigration)
+            {
+                SaveUsers(users);
+                _logger.LogInformation("Successfully migrated legacy plaintext passwords to secure BCrypt hashes.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to migrate legacy passwords during initialization.");
+        }
+    }
+
+    #endregion
+
+    #region Roadmaps Storage
 
     public List<Category> GetRoadmaps()
     {
-        if (!File.Exists(RoadmapsFile))
-            return new();
+        _roadmapsLock.EnterReadLock();
+        try
+        {
+            if (!File.Exists(RoadmapsFile))
+                return new List<Category>();
 
-        var json = File.ReadAllText(RoadmapsFile);
+            var json = File.ReadAllText(RoadmapsFile);
+            if (string.IsNullOrWhiteSpace(json))
+                return new List<Category>();
 
-        var result = JsonSerializer.Deserialize<List<Category>>(json, _jsonOptions);
-
-        Console.WriteLine("COUNT = " + result?.Count);
-
-
-        return result ?? new List<Category>();
+            return JsonSerializer.Deserialize<List<Category>>(json, _jsonOptions) ?? new List<Category>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error reading roadmaps file.");
+            return new List<Category>();
+        }
+        finally
+        {
+            _roadmapsLock.ExitReadLock();
+        }
     }
 
-    private string ProgressFile =>
-    Path.Combine(
-        _env.ContentRootPath,
-        "Data",
-        "progress.json"
-    );
+    public Category? GetCategoryByName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return null;
+        var categories = GetRoadmaps();
+        return categories.FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase));
+    }
 
-    public List<UserProgress> GetProgress()
+    public Technology? GetTechnologyByName(string techName)
+    {
+        if (string.IsNullOrWhiteSpace(techName)) return null;
+        var categories = GetRoadmaps();
+        foreach (var cat in categories)
+        {
+            var tech = cat.Technologies.FirstOrDefault(t => 
+                string.Equals(t.Name, techName, StringComparison.OrdinalIgnoreCase));
+            if (tech != null) return tech;
+        }
+        return null;
+    }
+
+    #endregion
+
+    #region Progress Storage
+
+    public List<UserProgress> GetAllProgress()
+    {
+        _progressLock.EnterReadLock();
+        try
+        {
+            return ReadProgressInternal();
+        }
+        finally
+        {
+            _progressLock.ExitReadLock();
+        }
+    }
+
+    public List<UserProgress> GetProgressForUser(string username)
+    {
+        if (string.IsNullOrWhiteSpace(username)) return new List<UserProgress>();
+
+        var all = GetAllProgress();
+        return all.Where(p => string.Equals(p.Username, username, StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+
+    public UserProgress? GetProgress(string username, string technology)
+    {
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(technology))
+            return null;
+
+        var userProgress = GetProgressForUser(username);
+        return userProgress.FirstOrDefault(p => 
+            string.Equals(p.Technology, technology, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public UserProgress SaveOrUpdateProgress(
+        string username,
+        string technology,
+        bool basics,
+        bool intermediate,
+        bool advanced,
+        int projects,
+        int score)
+    {
+        _progressLock.EnterWriteLock();
+        try
+        {
+            var list = ReadProgressInternal();
+            var existing = list.FirstOrDefault(x =>
+                string.Equals(x.Username, username, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(x.Technology, technology, StringComparison.OrdinalIgnoreCase));
+
+            if (existing != null)
+            {
+                existing.Basics = basics;
+                existing.Intermediate = intermediate;
+                existing.Advanced = advanced;
+                existing.Projects = projects;
+                existing.Score = score;
+                existing.LastUpdated = DateTime.UtcNow;
+            }
+            else
+            {
+                existing = new UserProgress
+                {
+                    Username = username,
+                    Technology = technology,
+                    Basics = basics,
+                    Intermediate = intermediate,
+                    Advanced = advanced,
+                    Projects = projects,
+                    Score = score,
+                    LastUpdated = DateTime.UtcNow
+                };
+                list.Add(existing);
+            }
+
+            var json = JsonSerializer.Serialize(list, _jsonOptions);
+            SafeWriteAtomic(ProgressFile, json);
+
+            return existing;
+        }
+        finally
+        {
+            _progressLock.ExitWriteLock();
+        }
+    }
+
+    public bool DeleteProgress(string username, string technology)
+    {
+        _progressLock.EnterWriteLock();
+        try
+        {
+            var list = ReadProgressInternal();
+            var countRemoved = list.RemoveAll(x =>
+                string.Equals(x.Username, username, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(x.Technology, technology, StringComparison.OrdinalIgnoreCase));
+
+            if (countRemoved > 0)
+            {
+                var json = JsonSerializer.Serialize(list, _jsonOptions);
+                SafeWriteAtomic(ProgressFile, json);
+                return true;
+            }
+            return false;
+        }
+        finally
+        {
+            _progressLock.ExitWriteLock();
+        }
+    }
+
+    private List<UserProgress> ReadProgressInternal()
     {
         if (!File.Exists(ProgressFile))
-            return new();
+            return new List<UserProgress>();
 
-        var json =
-            File.ReadAllText(ProgressFile);
+        var json = File.ReadAllText(ProgressFile);
+        if (string.IsNullOrWhiteSpace(json))
+            return new List<UserProgress>();
 
-        return JsonSerializer.Deserialize<
-            List<UserProgress>
-        >(json)
-        ?? new();
+        return JsonSerializer.Deserialize<List<UserProgress>>(json, _jsonOptions) ?? new List<UserProgress>();
     }
 
-    public void SaveProgress(
-    List<UserProgress> progress
-)
-    {
-        var json =
-            JsonSerializer.Serialize(
-                progress,
-                new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
+    #endregion
 
-        File.WriteAllText(
-            ProgressFile,
-            json
-        );
+    private static void SafeWriteAtomic(string filePath, string content)
+    {
+        var tempFile = filePath + ".tmp";
+        File.WriteAllText(tempFile, content);
+
+        if (File.Exists(filePath))
+        {
+            File.Replace(tempFile, filePath, null);
+        }
+        else
+        {
+            File.Move(tempFile, filePath);
+        }
     }
 }

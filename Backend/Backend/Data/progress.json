@@ -6,7 +6,8 @@
     "Intermediate": true,
     "Advanced": false,
     "Projects": 0,
-    "Score": 50
+    "Score": 50,
+    "LastUpdated": "2026-09-14T18:07:23.6946223Z"
   },
   {
     "Username": "Ahmed",
@@ -15,6 +16,17 @@
     "Intermediate": true,
     "Advanced": true,
     "Projects": 0,
-    "Score": 80
+    "Score": 80,
+    "LastUpdated": "2026-09-14T18:07:23.6946674Z"
+  },
+  {
+    "Username": "ahmedd",
+    "Technology": "HTML \u0026 CSS",
+    "Basics": true,
+    "Intermediate": true,
+    "Advanced": false,
+    "Projects": 0,
+    "Score": 50,
+    "LastUpdated": "2026-09-14T18:07:23.6954628Z"
   }
 ]

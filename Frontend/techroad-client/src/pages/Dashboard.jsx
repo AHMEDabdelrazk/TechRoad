@@ -1,195 +1,129 @@
-import {
-    useEffect,
-    useState
-}
-from "react";
-
-import api
-from "../services/api";
-
+import { useEffect, useState } from "react";
+import api from "../services/api";
 import Navbar from "../components/Navbar";
-
-import Sidebar
-from "../components/Sidebar";
-
-import TechnologyGroup
-from "../components/TechnologyGroup";
-
-import ProgressCard
-from "../components/ProgressCard";
-
-import RoadmapTimeline
-from "../components/RoadmapTimeline";
-
+import Sidebar from "../components/Sidebar";
+import TechnologyGroup from "../components/TechnologyGroup";
+import ProgressCard from "../components/ProgressCard";
+import RoadmapTimeline from "../components/RoadmapTimeline";
+import DashboardStats from "../components/DashboardStats";
 import "../styles/dashboard.css";
 
 export default function Dashboard() {
+  const [search, setSearch] = useState("");
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedTech, setSelectedTech] = useState(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-    const [search,
-        setSearch]
-        = useState("");
-    const [categories,
-        setCategories]
-        = useState([]);
+  useEffect(() => {
+    setLoading(true);
+    api
+      .get("/roadmap")
+      .then((response) => {
+        setCategories(response.data);
+        if (response.data && response.data.length > 0) {
+          setSelectedCategory(response.data[0]);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load roadmaps:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
 
-    const [selectedCategory,
-        setSelectedCategory]
-        = useState(null);
+  const handleProgressSaved = () => {
+    setRefreshTrigger((prev) => prev + 1);
+  };
 
-    const [selectedTech,
-        setSelectedTech]
-        = useState(null);
+  const grouped = selectedCategory?.technologies?.reduce((acc, tech) => {
+    if (!acc[tech.group]) {
+      acc[tech.group] = [];
+    }
+    acc[tech.group].push(tech);
+    return acc;
+  }, {});
 
-    useEffect(() => {
-
-        api.get("/roadmap")
-            .then(response => {
-
-                setCategories(
-                    response.data
-                );
-
-                setSelectedCategory(
-                    response.data[0]
-                );
-
-            });
-
-    }, []);
-
-    const grouped =
-        selectedCategory
-            ?.technologies
-            ?.reduce((acc, tech) => {
-
-                if (!acc[tech.group]) {
-
-                    acc[tech.group] = [];
-
-                }
-
-                acc[tech.group]
-                    .push(tech);
-
-                return acc;
-
-            }, {});
-
-    return (
+  return (
     <>
-        <Navbar />
-        <div className="layout">
+      <Navbar />
+      <div className="layout">
+        <Sidebar
+          categories={categories}
+          selectedCategory={selectedCategory}
+          setSelectedCategory={(cat) => {
+            setSelectedCategory(cat);
+            setSelectedTech(null);
+          }}
+          refreshTrigger={refreshTrigger}
+        />
 
-            <Sidebar
-                categories={categories}
-                selectedCategory={
-                    selectedCategory
-                }
-                setSelectedCategory={
-                    setSelectedCategory
-                }
+        <div className="main-content">
+          <DashboardStats refreshTrigger={refreshTrigger} />
+
+          <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "20px" }}>
+            <input
+              className="search-box"
+              placeholder="Search technologies in this category..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ flex: 1 }}
             />
+          </div>
 
-            <div className="main-content">
-                <input
-                        className="search-box"
-                        placeholder=
-                        "Search Technology"
+          <div className="hero">
+            <h1>
+              Become a Professional {selectedCategory?.name || "Software"} Developer
+            </h1>
+            <p>
+              Select technologies below, follow their guided learning paths, and track your
+              milestone progress with automated score evaluation.
+            </p>
+          </div>
 
-                        value={search}
+          <div className="guide-box">
+            {selectedTech
+              ? `Active Technology: ${selectedTech.name} — Follow the levels and build recommended projects below.`
+              : selectedCategory?.guide || "Select a technology to explore its detailed learning roadmap."}
+          </div>
 
-                        onChange={(e)=>
-                            setSearch(
-                                e.target.value
-                            )
-                        }
-                    />
-                <h1>
-                    {selectedCategory?.name}
-                </h1>
-                <div className="hero">
+          {loading ? (
+            <p style={{ textAlign: "center", padding: "40px", color: "#666" }}>
+              Loading roadmap tracks...
+            </p>
+          ) : (
+            grouped &&
+            Object.entries(grouped).map(([group, technologies]) => {
+              const filteredTechs = technologies.filter((tech) =>
+                tech.name.toLowerCase().includes(search.toLowerCase())
+              );
 
-                    <h1>
-                        Become a Professional 
-                        {selectedCategory?.name}
-                         Developer
-                    </h1>
+              if (filteredTechs.length === 0) return null;
 
-                    <p>
-                        Select technologies,
-                        follow the roadmap,
-                        track your progress.
-                    </p>
+              return (
+                <TechnologyGroup
+                  key={group}
+                  title={group}
+                  technologies={filteredTechs}
+                  setSelectedTech={setSelectedTech}
+                />
+              );
+            })
+          )}
 
-                    
-
-                </div>
-                <div className="guide-box">
-
-                {
-                    selectedTech
-                        ? `Current Technology: ${selectedTech.name}`
-                        : selectedCategory?.guide
-                }
-
-                </div>
-
-                {
-                    grouped &&
-                    Object.entries(grouped)
-                    .map(
-                    ([group, technologies]) => (
-
-                    <TechnologyGroup
-                        key={group}
-                        title={group}
-
-                        technologies={
-                            technologies.filter(
-                                tech =>
-                                    tech.name
-                                        .toLowerCase()
-                                        .includes(
-                                            search.toLowerCase()
-                                        )
-                            )
-                        }
-
-                        setSelectedTech={
-                            setSelectedTech
-                        }
-                    />
-
-                    ))
-                }
-
-                {
-                    selectedTech &&
-                    (
-                        <>
-                            <RoadmapTimeline
-                                technology={
-                                    selectedTech
-                                }
-                            />
-                        </>
-                    )
-                }
-
-                {
-                    selectedTech &&
-
-                    <ProgressCard
-                        technology={
-                            selectedTech
-                        }
-                    />
-                }
-
-            </div>
-
+          {selectedTech && (
+            <>
+              <RoadmapTimeline technology={selectedTech} />
+              <ProgressCard
+                technology={selectedTech}
+                onProgressSaved={handleProgressSaved}
+              />
+            </>
+          )}
         </div>
-        </>
-
-    );
+      </div>
+    </>
+  );
 }

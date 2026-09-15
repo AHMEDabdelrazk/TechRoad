@@ -1,12 +1,30 @@
 [
   {
+    "Id": "c2d98220-2992-403b-bab3-e485258ca058",
     "Username": "Ahmed",
     "Email": "ahmed@test.com",
-    "Password": "123456"
+    "Password": "$2a$11$rqfgg481m8uyntqostn14OwDIyrxhnJHNP49z55rTedDw/SW6.Jmi",
+    "CreatedAt": "2026-09-14T18:06:05.5257376Z"
   },
   {
+    "Id": "2323d759-f505-488e-90ce-e0c3d1ea866b",
     "Username": "salem",
     "Email": "s@gmail.com",
-    "Password": "123"
+    "Password": "$2a$11$DtUerbh5iwQ3UNyvTyOq4ebP0nJp9li4I43TZXOj24JT0zpNCspDO",
+    "CreatedAt": "2026-09-14T18:06:05.5279631Z"
+  },
+  {
+    "Id": "f3df6e8b-18bb-44ea-956a-b68328d3023d",
+    "Username": "ahmedd",
+    "Email": "ahmed0@gmail.com",
+    "Password": "$2a$11$kQNqIbip6ug4iiFu6aCug.E8pwyvgN0ggiEwwUAImMluBcX1CCxeS",
+    "CreatedAt": "2026-09-14T18:06:46.3668407Z"
+  },
+  {
+    "Id": "34050062-5aa9-4e60-8e42-067b5eec597b",
+    "Username": "ahmeddd",
+    "Email": "sam@gmail.com",
+    "Password": "$2a$11$CFgHTp/RaGmE.h9xxVzd3ejxUaR25aC91tQJD53UygVQGZ/BcowIe",
+    "CreatedAt": "2026-09-14T18:08:04.479814Z"
   }
 ]
