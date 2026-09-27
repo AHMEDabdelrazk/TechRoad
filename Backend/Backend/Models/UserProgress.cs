@@ -16,5 +16,16 @@ public class UserProgress
 
     public int Score { get; set; }
 
+    public List<TopicProgress> TopicProgress { get; set; } = new();
+
     public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
+}
+
+public class TopicProgress
+{
+    public string Level { get; set; } = string.Empty;
+
+    public string Topic { get; set; } = string.Empty;
+
+    public bool Completed { get; set; }
 }

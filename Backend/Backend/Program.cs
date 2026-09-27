@@ -29,10 +29,22 @@ builder.Services.AddCors(options =>
 });
 
 // JWT Authentication Configuration
-var jwtSecret = builder.Configuration["Jwt:SecretKey"] 
-    ?? "TechRoadSecureJsonWebTokenSecretKeyForDevelopmentAndEvaluation2026!";
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "TechRoadAPI";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "TechRoadClient";
+var jwtSecret = builder.Configuration["Jwt:SecretKey"];
+if (string.IsNullOrWhiteSpace(jwtSecret))
+{
+    if (builder.Environment.IsDevelopment())
+    {
+        jwtSecret = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+        builder.Configuration["Jwt:SecretKey"] = jwtSecret;
+    }
+    else
+    {
+        throw new InvalidOperationException("Jwt:SecretKey must be configured through user secrets or an environment variable.");
+    }
+}
+
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "ProgrammingTechAssistAPI";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "ProgrammingTechAssistClient";
 
 builder.Services.AddAuthentication(options =>
 {
@@ -64,9 +76,9 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "TechRoad API",
+        Title = "Programming Tech Assist API",
         Version = "v1",
-        Description = "TechRoad Learning Roadmap Tracker API with JWT Authentication and JSON storage."
+        Description = "Programming Tech Assist learning roadmap API with JWT authentication and JSON storage."
     });
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -100,7 +112,7 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "TechRoad API v1");
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Programming Tech Assist API v1");
     c.RoutePrefix = "swagger";
 });
 

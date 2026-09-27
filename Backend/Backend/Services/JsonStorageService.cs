@@ -265,6 +265,32 @@ public class JsonStorageService : IJsonStorageService
         int projects,
         int score)
     {
+        return SaveOrUpdateProgress(username, technology, new List<TopicProgress>(), projects, score, basics, intermediate, advanced);
+    }
+
+    public UserProgress SaveOrUpdateProgress(
+        string username,
+        string technology,
+        List<TopicProgress> topicProgress,
+        int projects,
+        int score)
+    {
+        var basics = topicProgress.Any(p => p.Level.Equals("Basics", StringComparison.OrdinalIgnoreCase) && p.Completed);
+        var intermediate = topicProgress.Any(p => p.Level.Equals("Intermediate", StringComparison.OrdinalIgnoreCase) && p.Completed);
+        var advanced = topicProgress.Any(p => p.Level.Equals("Advanced", StringComparison.OrdinalIgnoreCase) && p.Completed);
+        return SaveOrUpdateProgress(username, technology, topicProgress, projects, score, basics, intermediate, advanced);
+    }
+
+    private UserProgress SaveOrUpdateProgress(
+        string username,
+        string technology,
+        List<TopicProgress> topicProgress,
+        int projects,
+        int score,
+        bool basics,
+        bool intermediate,
+        bool advanced)
+    {
         _progressLock.EnterWriteLock();
         try
         {
@@ -280,6 +306,7 @@ public class JsonStorageService : IJsonStorageService
                 existing.Advanced = advanced;
                 existing.Projects = projects;
                 existing.Score = score;
+                existing.TopicProgress = topicProgress;
                 existing.LastUpdated = DateTime.UtcNow;
             }
             else
@@ -293,6 +320,7 @@ public class JsonStorageService : IJsonStorageService
                     Advanced = advanced,
                     Projects = projects,
                     Score = score,
+                    TopicProgress = topicProgress,
                     LastUpdated = DateTime.UtcNow
                 };
                 list.Add(existing);

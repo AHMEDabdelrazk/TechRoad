@@ -18,5 +18,6 @@ public interface IJsonStorageService
     List<UserProgress> GetProgressForUser(string username);
     UserProgress? GetProgress(string username, string technology);
     UserProgress SaveOrUpdateProgress(string username, string technology, bool basics, bool intermediate, bool advanced, int projects, int score);
+    UserProgress SaveOrUpdateProgress(string username, string technology, List<TopicProgress> topicProgress, int projects, int score);
     bool DeleteProgress(string username, string technology);
 }

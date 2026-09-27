@@ -15,6 +15,19 @@ public class SaveProgressDto
 
     [Range(0, 100, ErrorMessage = "Projects count must be between 0 and 100")]
     public int Projects { get; set; }
+
+    public List<TopicProgressDto> TopicProgress { get; set; } = new();
+}
+
+public class TopicProgressDto
+{
+    [Required]
+    public string Level { get; set; } = string.Empty;
+
+    [Required]
+    public string Topic { get; set; } = string.Empty;
+
+    public bool Completed { get; set; }
 }
 
 public class ProgressResponseDto
@@ -26,6 +39,7 @@ public class ProgressResponseDto
     public bool Advanced { get; set; }
     public int Projects { get; set; }
     public int Score { get; set; }
+    public List<TopicProgressDto> TopicProgress { get; set; } = new();
     public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
 }
 
@@ -36,4 +50,6 @@ public class ProgressStatsDto
     public int CompletedRoadmaps { get; set; }
     public int TotalProjects { get; set; }
     public int TotalLevelsCompleted { get; set; }
+    public int TotalTopicsCompleted { get; set; }
+    public int TotalTopics { get; set; }
 }

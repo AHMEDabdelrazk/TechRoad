@@ -17,10 +17,10 @@ public class JwtTokenService : ITokenService
 
     public string GenerateToken(User user, out DateTime expiresAt)
     {
-        var secretKey = _configuration["Jwt:SecretKey"] 
-            ?? "TechRoadSecureJsonWebTokenSecretKeyForDevelopmentAndEvaluation2026!";
-        var issuer = _configuration["Jwt:Issuer"] ?? "TechRoadAPI";
-        var audience = _configuration["Jwt:Audience"] ?? "TechRoadClient";
+        var secretKey = _configuration["Jwt:SecretKey"]
+            ?? throw new InvalidOperationException("Jwt:SecretKey must be configured through user secrets or an environment variable.");
+        var issuer = _configuration["Jwt:Issuer"] ?? "ProgrammingTechAssistAPI";
+        var audience = _configuration["Jwt:Audience"] ?? "ProgrammingTechAssistClient";
         var expirationMinutesStr = _configuration["Jwt:ExpiresInMinutes"] ?? "1440";
 
         if (!int.TryParse(expirationMinutesStr, out var expirationMinutes))

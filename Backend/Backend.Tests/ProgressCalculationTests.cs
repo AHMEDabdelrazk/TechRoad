@@ -1,4 +1,5 @@
 using Moq;
+using TechRoad.API.Models;
 using TechRoad.API.Services;
 using Xunit;
 
@@ -26,6 +27,21 @@ public class ProgressCalculationTests
     {
         var score = _service.CalculateScore(basics: true, intermediate: false, advanced: false, projects: 0);
         Assert.Equal(20, score);
+    }
+
+    [Fact]
+    public void CalculateScore_WithPartialTopicCompletion_ShouldWeightTopicsWithinTheirLevels()
+    {
+        var topics = new List<TopicProgress>
+        {
+            new() { Level = "Basics", Topic = "Syntax", Completed = true },
+            new() { Level = "Basics", Topic = "Types", Completed = false },
+            new() { Level = "Advanced", Topic = "Architecture", Completed = true }
+        };
+
+        var score = _service.CalculateScore(topics, projects: 0);
+
+        Assert.Equal(40, score);
     }
 
     [Fact]

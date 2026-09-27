@@ -93,6 +93,12 @@ public class ProgressController : ControllerBase
             Advanced = saved.Advanced,
             Projects = saved.Projects,
             Score = saved.Score,
+            TopicProgress = saved.TopicProgress.Select(topic => new TopicProgressDto
+            {
+                Level = topic.Level,
+                Topic = topic.Topic,
+                Completed = topic.Completed
+            }).ToList(),
             LastUpdated = saved.LastUpdated
         });
     }
