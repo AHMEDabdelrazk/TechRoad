@@ -1,6 +1,7 @@
 # 🚀 TechRoad Cloud Deployment Guide
 
 This guide details how to deploy the TechRoad full-stack platform using free cloud services:
+
 1. **Backend**: ASP.NET Core 8 Web API deployed to **Render** (or Railway / Fly.io).
 2. **Frontend**: React (Vite) Single-Page Application deployed to **Vercel** (or Netlify / Cloudflare Pages).
 3. **Local / Self-Hosted**: Multi-container **Docker Compose** deployment.
@@ -14,7 +15,7 @@ This guide details how to deploy the TechRoad full-stack platform using free clo
 3. Configure the service settings:
    - **Root Directory**: `Backend/Backend`
    - **Runtime**: `Docker` (or Environment: `.NET`)
-   - **Docker Command**: Automatically detected from `Dockerfile`
+   - **Dockerfile Path**: `Dockerfile` (relative to the root directory; do not add `.txt`)
    - **Port**: `8080`
 4. Set Environment Variables:
    - `ASPNETCORE_ENVIRONMENT`: `Production`
